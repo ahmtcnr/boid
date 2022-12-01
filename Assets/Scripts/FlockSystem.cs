@@ -11,8 +11,12 @@ public class FlockSystem : MonoBehaviour
     [SerializeField] private int _boidCount;
 
     [SerializeField] private Vector3 _dimension;
+    [SerializeField] private float _boundMultiplier;
 
     [SerializeField] private Boid _boidPrefab;
+    [SerializeField] private float _collisionDetectionRange;
+
+    [SerializeField] private float _velocityLimit;
 
 
     private HashSet<Boid> _flock = new HashSet<Boid>();
@@ -41,24 +45,33 @@ public class FlockSystem : MonoBehaviour
 
     private void MoveBoids()
     {
-        Vector3 v1, v2, v3;
+        Vector3 v1, v2, v3, bound;
 
         foreach (var boid in _flock)
         {
             v1 = Rule1(boid);
+            v2 = Rule2(boid);
+            v3 = Rule3(boid);
+            bound = BoundBoid(boid);
+            boid.Velocity = v1  +v2 + v3 + bound;
+            LimitVelocity(boid);
 
+            boid.transform.position += boid.Velocity * Time.deltaTime;
+        }
+    }
 
-            boid.Velocity = v1.normalized;
+    private void LimitVelocity(Boid boid)
+    {
+        Vector3 r = Vector3.zero;
 
-            //boid.transform.position += boid.Velocity * Time.deltaTime;
-
+        if (boid.Velocity.magnitude > _velocityLimit)
+        {
+            boid.Velocity = (boid.Velocity / boid.Velocity.magnitude) * _velocityLimit;
         }
     }
 
     private Vector3 Rule1(Boid boid)
     {
-
-
         var r = Vector3.zero;
         foreach (var b in _flock)
         {
@@ -68,7 +81,76 @@ public class FlockSystem : MonoBehaviour
             }
         }
 
+        r /= _flock.Count - 1;
+
         return (r - boid.transform.position) / 100;
+    }
+
+    private Vector3 Rule2(Boid boid)
+    {
+        var r = Vector3.zero;
+        foreach (var b in _flock)
+        {
+            if (b != boid)
+            {
+                if ((b.transform.position - boid.transform.position).magnitude < _collisionDetectionRange)
+                {
+                    r -= (b.transform.position - boid.transform.position);
+                }
+            }
+        }
+
+        return r;
+    }
+
+    private Vector3 Rule3(Boid boid)
+    {
+        var r = Vector3.zero;
+
+        foreach (var b in _flock)
+        {
+            if (b != boid)
+            {
+                r += b.Velocity;
+            }
+        }
+
+        r /= (_flock.Count - 1);
+
+        return r;
+    }
+
+    private Vector3 BoundBoid(Boid boid)
+    {
+        Vector3 v = Vector3.zero;
+        if (boid.transform.position.x > _dimension.x * -1)
+        {
+            v.x += -10;
+        }
+        else if (boid.transform.position.x < _dimension.x)
+        {
+            v.x += 10;
+        }
+
+        if (boid.transform.position.y > _dimension.y * -1)
+        {
+            v.y += -10;
+        }
+        else if (boid.transform.position.y < _dimension.y)
+        {
+            v.y += 10;
+        }
+
+        if (boid.transform.position.z > _dimension.z * -1)
+        {
+            v.z += -10;
+        }
+        else if (boid.transform.position.z < _dimension.z)
+        {
+            v.z += 10;
+        }
+
+        return v;
     }
 
 
@@ -79,13 +161,26 @@ public class FlockSystem : MonoBehaviour
         {
             boidPositionSum += boid.transform.position;
         }
-        
+
         //For Perceived Centre
         return boidPositionSum / (_flock.Count - 1);
-        
+
         //return boidPositionSum / _flock.Count;
     }
 
+    private Vector3 CenterOfMasssss()
+    {
+        Vector3 boidPositionSum = Vector3.zero;
+        foreach (var boid in _flock)
+        {
+            boidPositionSum += boid.transform.position;
+        }
+
+        //For Perceived Centre
+        //return boidPositionSum / (_flock.Count - 1);
+
+        return boidPositionSum / _flock.Count;
+    }
 
     // [Button("Create Flock")]
     // private void ReCreateFlock()
@@ -107,5 +202,7 @@ public class FlockSystem : MonoBehaviour
 
         Gizmos.color = Color.red;
         Gizmos.DrawSphere(CenterOfMass(), 0.5f);
+        Gizmos.color = Color.green;
+        Gizmos.DrawSphere(CenterOfMasssss(), 0.5f);
     }
 }
